@@ -1,0 +1,249 @@
+mkdir mlid
+cd mlid
+vi t1.txt
+:wq
+hadoop fs -mkdir /tmp/mlid
+hadoop fs -copyFromLocal /home/sai/mlid/t1.txt /tmp/mlid
+hadoop fs -ls /tmp/mlid
+hadoop jar WCM3.jar /tmp/mlid/t1.txt /tmp/mlid/out.txt
+hadoop fs -cat /tmp/mlid/out.txt/part-*
+kumar   3
+
+
+
+package com.mlrit;
+
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.StringTokenizer;
+
+//import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class Wordcount{
+
+	public static class WordCountMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
+
+		private static final IntWritable one = new IntWritable(1);
+
+		protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, IntWritable>.Context context)
+				throws IOException, InterruptedException {
+			String word;
+			String line = value.toString();
+			StringTokenizer tokenizer = new StringTokenizer(line);
+			while (tokenizer.hasMoreTokens()) {
+				word = tokenizer.nextToken();
+				context.write(new Text(word), one);
+			}
+		}
+
+	}
+
+	public static class WordCountReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+
+		@Override
+		protected void reduce(Text word, Iterable<IntWritable> list, Reducer<Text, IntWritable, Text, IntWritable>.Context context)
+				throws IOException, InterruptedException {
+			int sum = 0;
+			Iterator<IntWritable> iterator = list.iterator();
+			while (iterator.hasNext()) {
+				sum += iterator.next().get();
+				
+			}
+			context.write(word, new IntWritable(sum));
+		}
+
+	}
+
+	@SuppressWarnings("deprecation")
+	public static void main(String[] args) {
+		try {
+			Job job = new Job(new Configuration(),"WordCount");
+			job.setJarByClass(Wordcount.class);
+			job.setInputFormatClass(TextInputFormat.class);
+			
+			job.setMapperClass(WordCountMapper.class);
+			job.setCombinerClass(WordCountReducer.class);
+			job.setReducerClass(WordCountReducer.class);
+			
+			job.setOutputKeyClass(Text.class);
+			job.setOutputValueClass(IntWritable.class);
+			
+			job.setNumReduceTasks(2);
+			FileInputFormat.addInputPath(job, new Path(args[0]));
+			FileOutputFormat.setOutputPath(job, new Path(args[1]));
+			
+			job.waitForCompletion(true);
+		} catch (Exception e) {
+			
+			e.printStackTrace();
+		} 
+	}
+
+}
+
+
+
+-------------------------------------------------------------------
+package com.mlrit.mapreduce;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import java.io.IOException;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+public class WeatherReportProcessor {
+public static String January = "January";
+23
+public static String February = "February";
+public static String March = "March";
+public static String April = "April";
+public static String May = "May";
+public static String June = "June";
+public static String July = "July";
+public static String August = "August";
+public static String September = "September";
+public static String October = "October";
+public static String November = "November";
+public static String December = "December";
+public static class WeatherMapper extends Mapper<LongWritable, Text, Text, Text> {
+public void map(LongWritable key, Text value, Context context) throws
+IOException, InterruptedException {
+ try {
+ if (value.toString().contains("ID") || value.toString().contains("mm"))
+ return;
+ else {
+ String[] str = value.toString().split(" ");
+ String data = "";
+ for (int i = 0; i < str.length; i++) {
+ if (str[i] != null || str[i] != " ") {
+ data += (str[i] + " ");
+ }
+ }
+ String Trim = data.trim().replaceAll("\\s+", "\t");
+ String[] Split = Trim.toString().split("\t");
+ String Date = Split[1] + Split[2] + Split[3] + Split[4] + Split[5];
+ String Temp = Split[9] + "\t" + Split[10];
+ context.write(new Text(Date), new Text(Temp));
+ }
+ } catch (Exception e) {
+ e.printStackTrace();
+ }
+}
+}
+public static class WeatherReducer extends Reducer<Text, Text, Text, Text> {
+MultipleOutputs<Text, Text> mos;
+public void setup(Context context) {
+ mos = new MultipleOutputs<Text, Text>(context);
+}
+public void reduce(Text key, Iterable<Text> values, Context context) throws
+IOException, InterruptedException {
+ float f1 = 0, f2 = 50;
+ Text result = new Text();
+ while (values.iterator().hasNext()) {
+ String sr = values.iterator().next().toString();
+24
+ String[] str1 = sr.split("\t");
+ float max = Float.parseFloat(str1[0]);
+ float min = Float.parseFloat(str1[1]);
+ if (max > f1) {
+ f1 = max;
+ } else if (min < f2) {
+ f2 = min;
+ }
+ }
+ result = new Text(Float.toString(f1) + "\t" + Float.toString(f2));
+ String fileName = "";
+ if (key.toString().contains("/01/")) {
+ fileName = WeatherReportProcessor.January;
+ } else if (key.toString().contains("/02/")) {
+ fileName = WeatherReportProcessor.February;
+ } else if (key.toString().contains("/03/")) {
+ fileName = WeatherReportProcessor.March;
+ } else if (key.toString().contains("/04/")) {
+ fileName = WeatherReportProcessor.April;
+ } else if (key.toString().contains("/05/")) {
+ fileName = WeatherReportProcessor.May;
+ } else if (key.toString().contains("/06/")) {
+ fileName = WeatherReportProcessor.June;
+ } else if (key.toString().contains("/07/")) {
+ fileName = WeatherReportProcessor.July;
+ } else if (key.toString().contains("/08/")) {
+ fileName = WeatherReportProcessor.August;
+ } else if (key.toString().contains("/09/")) {
+ fileName = WeatherReportProcessor.September;
+ } else if (key.toString().contains("/10/")) {
+ fileName = WeatherReportProcessor.October;
+ } else if (key.toString().contains("/11/")) {
+ fileName = WeatherReportProcessor.November;
+ } else if (key.toString().contains("/12/")) {
+ fileName = WeatherReportProcessor.December;
+ }
+ // String strArr[] = key.toString().split("_");
+ // key.set(strArr[1]);
+ mos.write(fileName, key, result);
+}
+@Override
+public void cleanup(Context context) throws IOException, InterruptedException {
+ mos.close();
+}
+}
+public static void main(String[] args) throws Exception {
+25
+ Configuration conf = new Configuration();
+ @SuppressWarnings("deprecation")
+Job job = new Job(conf, "Weather Report");
+ job.setJarByClass(WeatherReportProcessor.class);
+ job.setMapperClass(WeatherMapper.class);
+ job.setReducerClass(WeatherReducer.class);
+// job.setInputFormatClass(ExcelInputFormat.class);
+// job.setOutputFormatClass(TextOutputFormat.class);
+// LazyOutputFormat.setOutputFormatClass(job, TextOutputFormat.class);
+ job.setOutputKeyClass(Text.class);
+ job.setOutputValueClass(Text.class);
+ MultipleOutputs.addNamedOutput(job, January, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, February, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, March, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, April, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, May, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, June, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, July, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, August, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, September, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, October, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, November, TextOutputFormat.class, Text.class,
+Text.class);
+ MultipleOutputs.addNamedOutput(job, December, TextOutputFormat.class, Text.class,
+Text.class);
+ // job.setNumReduceTasks(0);
+ FileInputFormat.addInputPath(job, new Path(args[0]));
+ FileOutputFormat.setOutputPath(job, new Path(args[1]));
+ System.exit(job.waitForCompletion(true) ? 0 : 1);
+}
+}
